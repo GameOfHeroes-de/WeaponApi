@@ -1,0 +1,5 @@
+main: de.gameofheroes.weaponapi.main.Main
+name: GOHWeaponAPI
+author: Hero_JonasHD
+version: -0.5.1
+api-version: 1.17
