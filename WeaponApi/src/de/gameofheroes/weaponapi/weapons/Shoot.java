@@ -1,6 +1,7 @@
 package de.gameofheroes.weaponapi.weapons;
 
 import java.util.logging.Logger;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -8,11 +9,16 @@ import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
+import org.bukkit.potion.Potion;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.potion.PotionType;
 
 import de.gameofheroes.weaponapi.main.Main;
 import de.gameofheroes.weaponapi.main.api.RegisterLister;
 import de.gameofheroes.weaponapi.main.api.ShootListener;
 import de.gameofheroes.weaponapi.weapons.types.ShootingWeapon;
+import net.minecraft.world.level.Explosion.Effect;
 
 
 public class Shoot {
@@ -21,15 +27,21 @@ public class Shoot {
 	private static Logger log = Main.getMain().getLogger();
 	
 	private static int lastShootID = 0;
-	private static ArrayList<Shoot> shoots5min;
-	private static ArrayList<Shoot> shoots5sec;
-	private HashMap<Player, Integer> lastPlayerShoot;
+	private static ArrayList<Shoot> shoots5min = new ArrayList<>();
+	private static ArrayList<Shoot> shoots5sec = new ArrayList<>() ;
+	private static HashMap<Player, Long> lastPlayerShoot = new HashMap<>();
 	
 	public static void newWeaponShoot(Player shooter, Weapon weapon, int weaponLevel) {
-		//log.info("Shoot from: "+ shooter.getDisplayName() + " with: " + weapon.getName());
-		Projectile projectile = shooter.launchProjectile(Arrow.class);
+		long l = System.currentTimeMillis();
+		if(!lastPlayerShoot.containsKey(shooter)) {
+			lastPlayerShoot.put(shooter, l);
+			l = l - 1000000; 
+		}
+		
+		//log.info("Shoot from: "+ shooter.getDisplayName() + " with: " + weapon.getName() + " shoottime-> " + l);
+		Arrow projectile = shooter.launchProjectile(Arrow.class);
 		projectile.setSilent(true);
-		//projectile.getVelocity().multiply(1);
+		
 		
 		Shoot shoot = new Shoot(shooter, projectile, lastShootID++, weapon, weaponLevel);
 		
@@ -41,12 +53,24 @@ public class Shoot {
 			}
 		}
 		
+		
 		if(!shoot.isCanceld) {
 			ShootingWeapon shootingWeapon = (ShootingWeapon) weapon;
-			shootingWeapon.prepareProjectile(projectile);
+			if(shootingWeapon.getLevelData(weaponLevel).getReloadTime() <= (l-lastPlayerShoot.get(shooter)+10)/10) {
+				shootingWeapon.prepareProjectile(projectile);
+				lastPlayerShoot.replace(shooter, l);
+				//Needs nms projectile.addCustomEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 100000, 1, true, false), false);
+				projectile.setVelocity(projectile.getVelocity().multiply(10));
+				projectile.setGravity(false);
+				projectile.setGlowing(true);
+				projectile.setTicksLived(1180);
+			}	else {
+				projectile.remove();
+			}
 		} else {
 			projectile.remove();
 		}
+		
 		
 	}
 	
@@ -67,7 +91,11 @@ public class Shoot {
 		this.weapon = weapon;
 		this.weaponLevel = weaponLevel;
 	}
-
+	
+	private void arrowTrace() {
+		// WIP
+	}
+	
 
 	public Player getShooter() {
 		return shooter;
@@ -121,6 +149,11 @@ public class Shoot {
 	public boolean isCanceld() {
 		return isCanceld;
 	}
+
+	public static ArrayList<Shoot> getShoots5sec() {
+		return shoots5sec;
+	}
+
 	
 	
 }
